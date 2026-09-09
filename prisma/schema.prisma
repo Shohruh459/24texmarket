@@ -1,0 +1,153 @@
+// Prisma schema — Intercity Taxi & Rideshare (Viloyatlararo Taksi va Poputniy)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PASSENGER
+  DRIVER
+  ADMIN
+}
+
+enum TripStatus {
+  SCHEDULED // e'lon qilingan, hali yo'lga chiqmagan
+  STARTED // haydovchi yo'lga chiqdi
+  FINISHED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum NotificationType {
+  NEW_TRIP // obuna bo'lingan haydovchi yangi qatnov e'lon qildi
+  TRIP_STARTED // haydovchi yo'lga chiqdi
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  NEW_SUBSCRIBER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  fullName     String
+  phone        String   @unique
+  email        String?  @unique
+  passwordHash String
+  role         Role     @default(PASSENGER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  driver        Driver?
+  bookings      Booking[]
+  subscriptions Subscription[]  @relation("PassengerSubscriptions")
+  notifications Notification[]
+}
+
+// Haydovchi profili — moshina va doimiy yo'nalish ma'lumotlari bir marta kiritiladi
+model Driver {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  carModel        String
+  carPlate        String
+  carColor        String?
+  totalSeats      Int      @default(4) // haydovchidan tashqari bo'sh o'rindiqlar soni
+  seatLayout      Json?    // masalan: ["front_right","back_left","back_middle","back_right"]
+
+  defaultFrom     String?  // doimiy yo'nalish boshlanishi
+  defaultTo       String?  // doimiy yo'nalish tugashi
+  defaultPrice    Int?     // o'rindiq uchun standart narx (so'm)
+
+  qrCodeId        String   @unique @default(uuid()) // shaxsiy QR/obuna havolasi identifikatori
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trips           Trip[]
+  subscribers     Subscription[] @relation("DriverSubscribers")
+}
+
+// Qatnov e'loni
+model Trip {
+  id          String     @id @default(uuid())
+  driverId    String
+  driver      Driver     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  fromCity    String
+  toCity      String
+  departAt    DateTime
+  pricePerSeat Int
+  totalSeats  Int
+  seatLayout  Json?      // qatnov uchun o'rindiqlar maketi (nusxa/override)
+  status      TripStatus @default(SCHEDULED)
+  carModel    String
+  carPlate    String
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  startedAt   DateTime?
+
+  bookings      Booking[]
+  notifications Notification[]
+
+  @@index([fromCity, toCity, departAt])
+}
+
+// Yo'lovchi bronlari
+model Booking {
+  id          String        @id @default(uuid())
+  tripId      String
+  trip        Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  passengerId String
+  passenger   User          @relation(fields: [passengerId], references: [id], onDelete: Cascade)
+
+  seatNumber  String // tanlangan o'rindiq kodi, masalan "back_left"
+  status      BookingStatus @default(CONFIRMED)
+
+  pickupLat   Float?  // xaritadan belgilangan olib ketish nuqtasi
+  pickupLng   Float?
+  pickupNote  String?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([tripId, seatNumber], name: "tripId_seatNumber")
+}
+
+// Yo'lovchining haydovchiga obunasi (QR orqali)
+model Subscription {
+  id          String   @id @default(uuid())
+  driverId    String
+  driver      Driver   @relation("DriverSubscribers", fields: [driverId], references: [id], onDelete: Cascade)
+  passengerId String
+  passenger   User     @relation("PassengerSubscriptions", fields: [passengerId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([driverId, passengerId])
+}
+
+model Notification {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  tripId    String?
+  trip      Trip?             @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  isRead    Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  @@index([userId, isRead])
+}

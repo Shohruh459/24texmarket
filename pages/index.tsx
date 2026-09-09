@@ -1,81 +1,69 @@
-import { useEffect, useState } from "react";
-import { db } from "../lib/firebase";
-import { collection, getDocs, orderBy, limit, query } from "firebase/firestore";
 import Link from "next/link";
 
-interface Listing {
-  id: string;
-  title: string;
-  price: number;
-  category: string;
-  region: string;
-  imageUrl?: string;
-}
-
 export default function Home() {
-  const [latest, setLatest] = useState<Listing[]>([]);
-
-  useEffect(() => {
-    const fetchLatest = async () => {
-      const q = query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(6));
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Listing[];
-      setLatest(data);
-    };
-
-    fetchLatest();
-  }, []);
-
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      {/* Sayt haqida */}
-      <section className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-blue-700 mb-2">24TexMarket</h1>
-        <p className="text-gray-600">
-          O‘zbekiston bo‘ylab <span className="font-semibold">yirik texnika</span> va <span className="font-semibold">yengil transport vositalarini</span> ijaraga berish va topish platformasi.
+    <div className="max-w-5xl mx-auto p-6">
+      <section className="text-center mb-12 mt-6">
+        <h1 className="text-3xl md:text-4xl font-bold text-blue-700 mb-3">
+          Viloyatlararo Qulay Taksi va Yo'l-yo'lakay
+        </h1>
+        <p className="text-gray-600 max-w-2xl mx-auto">
+          Shaharlararo qatnovchi haydovchilar va arzon yo'l haqi izlayotgan yo'lovchilarni bir joyda
+          bog'laydi. Doimiy yo'nalishingiz bo'yicha bir tugma bosish orqali e'lon joylang yoki bo'sh
+          o'rindiqni oldindan tanlab bron qiling.
         </p>
+        <div className="flex flex-wrap gap-3 justify-center mt-6">
+          <Link href="/search" className="bg-blue-600 text-white px-5 py-3 rounded-xl font-semibold">
+            🔍 Qatnov qidirish
+          </Link>
+          <Link href="/register" className="bg-white border border-blue-600 text-blue-600 px-5 py-3 rounded-xl font-semibold">
+            🚗 Haydovchi bo'lib ro'yxatdan o'tish
+          </Link>
+        </div>
       </section>
 
-      {/* Qanday ishlaydi */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {[
-          { step: "1", title: "Ro‘yxatdan o‘ting", desc: "Email yoki Google orqali akkaunt yarating." },
-          { step: "2", title: "E’lon joylang", desc: "Texnikangiz yoki avtomobilingizni ko‘rsating." },
-          { step: "3", title: "Toping va aloqa qiling", desc: "Sifatli mijozlarga tez yetishing." },
+          {
+            icon: "📝",
+            title: "Profilni to'ldiring",
+            desc: "Haydovchilar moshina va doimiy yo'nalishni bir marta kiritadi.",
+          },
+          {
+            icon: "🚦",
+            title: "Qatnov e'lon qiling yoki toping",
+            desc: "Bir tugma bilan e'lon joylang yoki filtr orqali kerakli yo'nalishni qidiring.",
+          },
+          {
+            icon: "🔔",
+            title: "Xabardor bo'lib boring",
+            desc: "Haydovchi yo'lga chiqqanda barcha obunachi va bron qilganlarga avtomatik xabar boradi.",
+          },
         ].map((item) => (
-          <div key={item.step} className="bg-white shadow rounded p-4 text-center">
-            <div className="text-4xl font-bold text-blue-600 mb-2">{item.step}</div>
+          <div key={item.title} className="bg-white shadow rounded-xl p-5 text-center">
+            <div className="text-4xl mb-2">{item.icon}</div>
             <h3 className="text-lg font-semibold">{item.title}</h3>
-            <p className="text-gray-500">{item.desc}</p>
+            <p className="text-gray-500 text-sm mt-1">{item.desc}</p>
           </div>
         ))}
       </section>
 
-      {/* Oxirgi e’lonlar */}
-      <section className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">So‘nggi e’lonlar</h2>
-          <Link href="/listings" className="text-blue-600 hover:underline text-sm">Barchasini ko‘rish →</Link>
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white shadow rounded-xl p-6">
+          <h2 className="text-xl font-semibold mb-2">🚗 Haydovchilar uchun</h2>
+          <ul className="text-gray-600 space-y-1 text-sm list-disc list-inside">
+            <li>Interaktiv o'rindiqlar maketi orqali bo'sh joylarni boshqaring</li>
+            <li>Shaxsiy QR-kod orqali doimiy yo'lovchilarni to'plang</li>
+            <li>"Yo'lga chiqdim" tugmasi bilan hammaga bir zumda xabar bering</li>
+          </ul>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {latest.map((listing) => (
-            <div key={listing.id} className="bg-white p-4 rounded shadow">
-              {listing.imageUrl && (
-                <img src={listing.imageUrl} alt={listing.title} className="w-full h-40 object-cover rounded mb-2" />
-              )}
-              <h3 className="text-lg font-bold">{listing.title}</h3>
-              <p className="text-gray-600">
-                Narx: {listing.price.toLocaleString()} so‘m {listing.category === "yirik" ? " / soat" : ""}
-              </p>
-              <p className="text-sm text-gray-500">{listing.region}</p>
-              <Link href={`/edit/${listing.id}`} className="text-blue-500 text-sm underline mt-2 inline-block">
-                Batafsil →
-              </Link>
-            </div>
-          ))}
+        <div className="bg-white shadow rounded-xl p-6">
+          <h2 className="text-xl font-semibold mb-2">🧳 Yo'lovchilar uchun</h2>
+          <ul className="text-gray-600 space-y-1 text-sm list-disc list-inside">
+            <li>Yo'nalish, vaqt va narx bo'yicha qidiring</li>
+            <li>Avtomobil maketidan o'zingiz xohlagan o'rindiqni tanlang</li>
+            <li>Xaritadan olib ketish nuqtangizni belgilang</li>
+          </ul>
         </div>
       </section>
     </div>

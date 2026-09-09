@@ -1,112 +1,116 @@
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { auth, db } from "../lib/firebase";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  deleteDoc,
-  doc,
-} from "firebase/firestore";
 import { useRouter } from "next/router";
+import { useUser } from "../lib/useUser";
+import { apiFetch } from "../lib/api";
 
-interface Listing {
+interface Booking {
   id: string;
-  title: string;
-  price: number;
-  category: string;
-  region: string;
-  imageUrl?: string;
+  seatNumber: string;
+  status: string;
+  trip: {
+    id: string;
+    fromCity: string;
+    toCity: string;
+    departAt: string;
+    status: string;
+    pricePerSeat: number;
+  };
+}
+
+interface SubscriptionItem {
+  id: string;
+  driver: { id: string; carModel: string; qrCodeId: string; user: { fullName: string } };
 }
 
 export default function ProfilePage() {
-  const [userListings, setUserListings] = useState<Listing[]>([]);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
+  const { user, loading, setUser } = useUser();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [subs, setSubs] = useState<SubscriptionItem[]>([]);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) {
+    if (!loading && !user) {
       router.push("/login");
       return;
     }
-
-    setUserEmail(currentUser.email);
-
-    const fetchUserListings = async () => {
-      const q = query(collection(db, "listings"), where("owner", "==", currentUser.uid));
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Listing[];
-      setUserListings(data);
-    };
-
-    fetchUserListings();
-  }, []);
-
-  const handleDelete = async (id: string) => {
-    const confirmDelete = confirm("E’lonni o‘chirishni xohlaysizmi?");
-    if (!confirmDelete) return;
-
-    await deleteDoc(doc(db, "listings", id));
-    setUserListings((prev) => prev.filter((listing) => listing.id !== id));
-  };
+    if (user) {
+      apiFetch<Booking[]>("/api/bookings").then(setBookings).catch(() => {});
+      apiFetch<SubscriptionItem[]>("/api/subscriptions").then(setSubs).catch(() => {});
+    }
+  }, [loading, user, router]);
 
   const handleLogout = async () => {
-    await auth.signOut();
+    await apiFetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
     router.push("/login");
   };
 
+  if (loading || !user) return <div className="p-6 text-center text-gray-500">Yuklanmoqda...</div>;
+
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="max-w-3xl mx-auto p-4 space-y-6">
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Profil</h1>
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 text-white px-3 py-1 rounded"
-        >
+        <button onClick={handleLogout} className="bg-red-600 text-white px-3 py-1 rounded">
           Chiqish
         </button>
       </div>
 
-      <p className="mb-4 text-gray-700">Email: {userEmail}</p>
+      <div className="bg-white rounded-xl shadow p-4">
+        <p className="font-semibold">{user.fullName}</p>
+        <p className="text-gray-600">{user.phone}</p>
+        <p className="text-gray-600">Rol: {user.role === "DRIVER" ? "Haydovchi" : "Yo'lovchi"}</p>
+        {user.role === "DRIVER" && (
+          <a href="/driver" className="text-blue-600 underline text-sm mt-2 inline-block">
+            Haydovchi paneliga o'tish →
+          </a>
+        )}
+      </div>
 
-      {userListings.length === 0 ? (
-        <p>Sizda hali e’lon mavjud emas.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {userListings.map((listing) => (
-            <div key={listing.id} className="bg-white p-4 shadow rounded">
-              {listing.imageUrl && (
-                <img
-                  src={listing.imageUrl}
-                  alt={listing.title}
-                  className="w-full h-40 object-cover rounded mb-2"
-                />
-              )}
-              <h2 className="text-lg font-semibold">{listing.title}</h2>
-              <p>Narx: {listing.price.toLocaleString()} so‘m</p>
-              <p>Kategoriya: {listing.category} | Hudud: {listing.region}</p>
-              <div className="flex gap-3 mt-2">
-              <Link href={`/edit/${listing.id}`}>
-  <button className="text-blue-600 underline text-sm">Tahrirlash</button>
-</Link>
+      <section>
+        <h2 className="text-lg font-semibold mb-2">Mening bronlarim</h2>
+        {bookings.length === 0 ? (
+          <p className="text-gray-500">Hozircha bron mavjud emas.</p>
+        ) : (
+          <div className="space-y-2">
+            {bookings.map((b) => (
+              <a
+                key={b.id}
+                href={`/trip/${b.trip.id}`}
+                className="block bg-white rounded-xl shadow p-4 hover:shadow-md"
+              >
+                <p className="font-semibold">
+                  {b.trip.fromCity} → {b.trip.toCity}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {new Date(b.trip.departAt).toLocaleString("uz-UZ")} · O'rindiq: {b.seatNumber} ·{" "}
+                  {b.trip.pricePerSeat.toLocaleString()} so'm
+                </p>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
 
-                <button
-                  onClick={() => handleDelete(listing.id)}
-                  className="text-red-600 underline text-sm"
-                >
-                  O‘chirish
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <section>
+        <h2 className="text-lg font-semibold mb-2">Obunalarim</h2>
+        {subs.length === 0 ? (
+          <p className="text-gray-500">Hozircha hech qaysi haydovchiga obuna emassiz.</p>
+        ) : (
+          <div className="space-y-2">
+            {subs.map((s) => (
+              <a
+                key={s.id}
+                href={`/driver/${s.driver.qrCodeId}`}
+                className="block bg-white rounded-xl shadow p-4 hover:shadow-md"
+              >
+                <p className="font-semibold">{s.driver.user.fullName}</p>
+                <p className="text-sm text-gray-500">{s.driver.carModel}</p>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
