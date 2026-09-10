@@ -16,7 +16,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const trips = await prisma.trip.findMany({
       where: { driverId: driver.id },
       orderBy: { departAt: "desc" },
-      include: { bookings: { where: { status: { not: "CANCELLED" } } } },
+      include: {
+        bookings: {
+          where: { status: { not: "CANCELLED" } },
+          include: { passenger: { select: { fullName: true, phone: true } } },
+        },
+      },
     });
     return res.status(200).json(trips);
   }
@@ -31,10 +36,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const pricePerSeat = body.pricePerSeat ? Number(body.pricePerSeat) : driver.defaultPrice;
     const departAt = body.departAt ? new Date(body.departAt) : new Date();
 
-    if (!fromCity || !toCity || !pricePerSeat) {
+    if (!fromCity || !toCity || !pricePerSeat || pricePerSeat <= 0) {
       return res
         .status(400)
         .json({ error: "Yo'nalish va narx kerak (yoki avval profilda doimiy yo'nalish belgilang)" });
+    }
+    if (Number.isNaN(departAt.getTime())) {
+      return res.status(400).json({ error: "Jo'nash vaqti noto'g'ri" });
     }
 
     const trip = await prisma.trip.create({

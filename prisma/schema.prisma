@@ -17,6 +17,7 @@ enum Role {
 
 enum TripStatus {
   SCHEDULED // e'lon qilingan, hali yo'lga chiqmagan
+  FULL // barcha o'rindiqlar band qilingan
   STARTED // haydovchi yo'lga chiqdi
   FINISHED
   CANCELLED
@@ -31,8 +32,10 @@ enum BookingStatus {
 enum NotificationType {
   NEW_TRIP // obuna bo'lingan haydovchi yangi qatnov e'lon qildi
   TRIP_STARTED // haydovchi yo'lga chiqdi
-  BOOKING_CONFIRMED
-  BOOKING_CANCELLED
+  BOOKING_CONFIRMED // yo'lovchiga: broningiz tasdiqlandi
+  NEW_BOOKING // haydovchiga: yo'lovchi o'rindiq band qildi
+  BOOKING_CANCELLED // haydovchiga: yo'lovchi bronni bekor qildi
+  TRIP_FULL // haydovchiga: barcha o'rindiqlar band bo'ldi
   NEW_SUBSCRIBER
 }
 

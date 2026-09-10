@@ -4,8 +4,16 @@ import QRCode from "qrcode";
 import { useUser } from "../../lib/useUser";
 import { apiFetch } from "../../lib/api";
 import { cities } from "../../data/cities";
-import { defaultSeatLayout } from "../../lib/seatLayout";
+import { defaultSeatLayout, seatLabel } from "../../lib/seatLayout";
 import SeatMap from "../../components/SeatMap";
+
+interface TripBooking {
+  seatNumber: string;
+  pickupLat: number | null;
+  pickupLng: number | null;
+  pickupNote: string | null;
+  passenger: { fullName: string; phone: string };
+}
 
 interface Trip {
   id: string;
@@ -15,7 +23,7 @@ interface Trip {
   pricePerSeat: number;
   totalSeats: number;
   status: string;
-  bookings: { seatNumber: string }[];
+  bookings: TripBooking[];
 }
 
 export default function DriverDashboard() {
@@ -305,7 +313,7 @@ export default function DriverDashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={trip.status} />
-                      {trip.status === "SCHEDULED" && (
+                      {(trip.status === "SCHEDULED" || trip.status === "FULL") && (
                         <button
                           onClick={() => startTrip(trip.id)}
                           className="bg-blue-600 text-white text-sm px-3 py-1 rounded"
@@ -320,6 +328,36 @@ export default function DriverDashboard() {
                     bookedSeatIds={trip.bookings.map((b) => b.seatNumber)}
                     readOnly
                   />
+                  {trip.bookings.length > 0 && (
+                    <div className="mt-3 border-t pt-3 space-y-2">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Yo'lovchilar</p>
+                      {trip.bookings.map((b) => (
+                        <div key={b.seatNumber} className="text-sm bg-gray-50 rounded-lg p-2">
+                          <p className="font-medium">
+                            {seatLabel(b.seatNumber)} — {b.passenger.fullName}{" "}
+                            <a href={`tel:${b.passenger.phone}`} className="text-blue-600">
+                              {b.passenger.phone}
+                            </a>
+                          </p>
+                          <p className="text-gray-500 break-words">
+                            {b.pickupNote && <span>{b.pickupNote} · </span>}
+                            {b.pickupLat != null && b.pickupLng != null ? (
+                              <a
+                                href={`https://www.google.com/maps?q=${b.pickupLat},${b.pickupLng}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 underline"
+                              >
+                                Xaritada ko'rish
+                              </a>
+                            ) : (
+                              <span>manzil belgilanmagan</span>
+                            )}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -333,6 +371,7 @@ export default function DriverDashboard() {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     SCHEDULED: { label: "E'lon qilingan", cls: "bg-yellow-100 text-yellow-800" },
+    FULL: { label: "To'ldi", cls: "bg-purple-100 text-purple-800" },
     STARTED: { label: "Yo'lda", cls: "bg-blue-100 text-blue-800" },
     FINISHED: { label: "Yakunlangan", cls: "bg-gray-100 text-gray-600" },
     CANCELLED: { label: "Bekor qilingan", cls: "bg-red-100 text-red-700" },

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../lib/prisma";
 import { signToken, setSessionCookie } from "../../../lib/auth";
+import { checkRateLimit, getClientIp } from "../../../lib/rateLimit";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -9,11 +10,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { phone, password } = req.body || {};
-  if (!phone || !password) {
+  if (!phone || !password || typeof phone !== "string" || typeof password !== "string") {
     return res.status(400).json({ error: "Telefon va parol majburiy" });
   }
 
-  const user = await prisma.user.findUnique({ where: { phone } });
+  // Brute-force urinishlarga qarshi: bir IP + telefon kombinatsiyasi uchun
+  // 15 daqiqada ko'pi bilan 10 ta urinishga ruxsat beriladi.
+  const rateKey = `login:${getClientIp(req)}:${phone}`;
+  if (!checkRateLimit(rateKey, 10, 15 * 60 * 1000)) {
+    return res.status(429).json({ error: "Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring." });
+  }
+
+  const user = await prisma.user.findUnique({ where: { phone: phone.trim() } });
   if (!user) {
     return res.status(401).json({ error: "Telefon yoki parol noto'g'ri" });
   }

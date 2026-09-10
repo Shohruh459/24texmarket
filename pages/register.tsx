@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { apiFetch } from "../lib/api";
+import { useUser } from "../lib/useUser";
 
 export default function Register() {
   const router = useRouter();
+  const { refresh } = useUser();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +22,7 @@ export default function Register() {
         method: "POST",
         body: JSON.stringify({ fullName, phone, password, role }),
       });
+      await refresh(); // Navbar va boshqa komponentlarda ham yangi sessiyani darhol aks ettirish
       router.push(role === "DRIVER" ? "/driver" : "/search");
     } catch (err: any) {
       setError(err.message);

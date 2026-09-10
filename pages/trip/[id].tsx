@@ -21,7 +21,7 @@ interface TripDetail {
   carPlate: string;
   carColor: string | null;
   driverName: string;
-  driverPhone: string;
+  driverPhone: string | null;
   driverQrCodeId: string;
   bookedSeats: string[];
 }
@@ -99,17 +99,32 @@ export default function TripDetailPage() {
           {trip.carModel} · {trip.carPlate} {trip.carColor && `· ${trip.carColor}`}
         </p>
         <p className="text-gray-600">
-          Haydovchi: {trip.driverName} ·{" "}
+          Haydovchi: {trip.driverName}
+          {trip.driverPhone && (
+            <>
+              {" "}
+              ·{" "}
+              <a href={`tel:${trip.driverPhone}`} className="text-blue-600 underline">
+                {trip.driverPhone}
+              </a>
+            </>
+          )}{" "}
+          ·{" "}
           <a href={`/driver/${trip.driverQrCodeId}`} className="text-blue-600 underline">
             profilga o'tish
           </a>
         </p>
+        {!trip.driverPhone && (
+          <p className="text-xs text-gray-400">Haydovchi raqamini ko'rish uchun tizimga kiring</p>
+        )}
         <p className="text-blue-700 font-bold text-lg mt-2">
           {trip.pricePerSeat.toLocaleString()} so'm / o'rindiq
         </p>
       </div>
 
-      {trip.status !== "SCHEDULED" ? (
+      {trip.status === "FULL" ? (
+        <p className="text-amber-600">Bu qatnovda barcha o'rindiqlar band qilingan (To'ldi).</p>
+      ) : trip.status !== "SCHEDULED" ? (
         <p className="text-amber-600">Bu qatnov uchun endi bron qilib bo'lmaydi.</p>
       ) : success ? (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4">
@@ -142,10 +157,10 @@ export default function TripDetailPage() {
 
           <button
             onClick={submitBooking}
-            disabled={booking}
+            disabled={booking || !selectedSeat}
             className="w-full bg-green-600 text-white p-3 rounded-xl font-semibold disabled:opacity-50"
           >
-            {booking ? "Bron qilinmoqda..." : "Bron qilish"}
+            {booking ? "Bron qilinmoqda..." : !selectedSeat ? "Avval o'rindiq tanlang" : "Bron qilish"}
           </button>
         </>
       )}

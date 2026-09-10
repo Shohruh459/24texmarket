@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { apiFetch } from "../lib/api";
+import { useUser } from "../lib/useUser";
 
 export default function Login() {
   const router = useRouter();
+  const { refresh } = useUser();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,6 +20,7 @@ export default function Login() {
         method: "POST",
         body: JSON.stringify({ phone, password }),
       });
+      await refresh(); // Navbar va boshqa komponentlarda ham yangi sessiyani darhol aks ettirish
       const next = typeof router.query.next === "string" ? router.query.next : null;
       router.push(next || (user.role === "DRIVER" ? "/driver" : "/search"));
     } catch (err: any) {

@@ -3,7 +3,13 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { serialize, parse } from "cookie";
 import { prisma } from "./prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const DEV_FALLBACK_SECRET = "dev-secret-change-me";
+if (process.env.NODE_ENV === "production" && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEV_FALLBACK_SECRET)) {
+  // Production muhitida standart/bo'sh JWT_SECRET bilan ishga tushirishga yo'l qo'ymaymiz —
+  // aks holda token'larni istalgan kishi soxtalashtira oladi.
+  throw new Error("JWT_SECRET muhit o'zgaruvchisi production'da albatta o'rnatilishi shart (.env faylida).");
+}
+const JWT_SECRET = process.env.JWT_SECRET || DEV_FALLBACK_SECRET;
 const COOKIE_NAME = "taxi_session";
 
 export interface TokenPayload {

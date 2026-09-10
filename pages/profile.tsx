@@ -27,6 +27,11 @@ export default function ProfilePage() {
   const { user, loading, setUser } = useUser();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [subs, setSubs] = useState<SubscriptionItem[]>([]);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const loadBookings = () => {
+    apiFetch<Booking[]>("/api/bookings").then(setBookings).catch(() => {});
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -34,7 +39,7 @@ export default function ProfilePage() {
       return;
     }
     if (user) {
-      apiFetch<Booking[]>("/api/bookings").then(setBookings).catch(() => {});
+      loadBookings();
       apiFetch<SubscriptionItem[]>("/api/subscriptions").then(setSubs).catch(() => {});
     }
   }, [loading, user, router]);
@@ -43,6 +48,19 @@ export default function ProfilePage() {
     await apiFetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     router.push("/login");
+  };
+
+  const cancelBooking = async (id: string) => {
+    if (!confirm("Bronni bekor qilishni tasdiqlaysizmi?")) return;
+    setCancellingId(id);
+    try {
+      await apiFetch(`/api/bookings/${id}`, { method: "DELETE" });
+      loadBookings();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   if (loading || !user) return <div className="p-6 text-center text-gray-500">Yuklanmoqda...</div>;
@@ -74,19 +92,28 @@ export default function ProfilePage() {
         ) : (
           <div className="space-y-2">
             {bookings.map((b) => (
-              <a
-                key={b.id}
-                href={`/trip/${b.trip.id}`}
-                className="block bg-white rounded-xl shadow p-4 hover:shadow-md"
-              >
-                <p className="font-semibold">
-                  {b.trip.fromCity} → {b.trip.toCity}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {new Date(b.trip.departAt).toLocaleString("uz-UZ")} · O'rindiq: {b.seatNumber} ·{" "}
-                  {b.trip.pricePerSeat.toLocaleString()} so'm
-                </p>
-              </a>
+              <div key={b.id} className="bg-white rounded-xl shadow p-4">
+                <a href={`/trip/${b.trip.id}`} className="block hover:opacity-80">
+                  <p className="font-semibold">
+                    {b.trip.fromCity} → {b.trip.toCity}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(b.trip.departAt).toLocaleString("uz-UZ")} · O'rindiq: {b.seatNumber} ·{" "}
+                    {b.trip.pricePerSeat.toLocaleString()} so'm
+                  </p>
+                </a>
+                {b.trip.status === "SCHEDULED" || b.trip.status === "FULL" ? (
+                  <button
+                    onClick={() => cancelBooking(b.id)}
+                    disabled={cancellingId === b.id}
+                    className="text-red-600 text-sm underline mt-2 disabled:opacity-50"
+                  >
+                    {cancellingId === b.id ? "Bekor qilinmoqda..." : "Bronni bekor qilish"}
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-2">Bu bron endi bekor qilinmaydi</p>
+                )}
+              </div>
             ))}
           </div>
         )}

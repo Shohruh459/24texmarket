@@ -18,6 +18,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!trip || trip.driverId !== driver.id) {
     return res.status(404).json({ error: "Qatnov topilmadi" });
   }
+  if (trip.status !== "SCHEDULED" && trip.status !== "FULL") {
+    return res.status(400).json({ error: "Bu qatnovni boshlab bo'lmaydi (holati mos emas)" });
+  }
 
   const updated = await prisma.trip.update({
     where: { id: trip.id },

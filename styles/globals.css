@@ -2,9 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
 body {
   font-family: Arial, sans-serif;
   background: #f9f9f9;
   margin: 0;
   padding: 0;
+  /* Har qanday tasodifiy keng element mobil ekranda gorizontal scroll yaratib
+     yubormasligi uchun himoya qatlami. */
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }

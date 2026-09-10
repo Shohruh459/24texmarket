@@ -1,5 +1,15 @@
 import { prisma } from "./prisma";
 import type { Trip, Driver } from "@prisma/client";
+import { seatLabel } from "./seatLayout";
+
+function formatPickup(pickupLat?: number | null, pickupLng?: number | null, pickupNote?: string | null): string {
+  const parts: string[] = [];
+  if (pickupNote) parts.push(`"${pickupNote}"`);
+  if (pickupLat != null && pickupLng != null) {
+    parts.push(`https://www.google.com/maps?q=${pickupLat},${pickupLng}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "yo'lovchi manzil belgilamagan";
+}
 
 export async function notifyNewTrip(trip: Trip, driver: Driver) {
   const subscribers = await prisma.subscription.findMany({
@@ -54,6 +64,54 @@ export async function notifyBookingConfirmed(passengerId: string, trip: Trip, se
       type: "BOOKING_CONFIRMED",
       title: "Bron tasdiqlandi",
       body: `${trip.fromCity} → ${trip.toCity} qatnovida ${seatNumber} o'rindiq siz uchun bron qilindi.`,
+      tripId: trip.id,
+    },
+  });
+}
+
+export async function notifyDriverNewBooking(
+  driverUserId: string,
+  trip: Trip,
+  passengerName: string,
+  seatNumber: string,
+  pickupLat?: number | null,
+  pickupLng?: number | null,
+  pickupNote?: string | null
+) {
+  await prisma.notification.create({
+    data: {
+      userId: driverUserId,
+      type: "NEW_BOOKING",
+      title: "Yangi bron!",
+      body: `${passengerName} ${trip.fromCity} → ${trip.toCity} qatnovida "${seatLabel(
+        seatNumber
+      )}" o'rindiqni band qildi. Olib ketish manzili: ${formatPickup(pickupLat, pickupLng, pickupNote)}`,
+      tripId: trip.id,
+    },
+  });
+}
+
+export async function notifyTripFull(driverUserId: string, trip: Trip) {
+  await prisma.notification.create({
+    data: {
+      userId: driverUserId,
+      type: "TRIP_FULL",
+      title: "Barcha o'rindiqlar band qilindi",
+      body: `${trip.fromCity} → ${trip.toCity} qatnovingizdagi barcha o'rindiqlar band qilindi. Qatnov holati "To'ldi"ga o'zgartirildi.`,
+      tripId: trip.id,
+    },
+  });
+}
+
+export async function notifyBookingCancelled(driverUserId: string, trip: Trip, seatNumber: string, passengerName: string) {
+  await prisma.notification.create({
+    data: {
+      userId: driverUserId,
+      type: "BOOKING_CANCELLED",
+      title: "Bron bekor qilindi",
+      body: `${passengerName} ${trip.fromCity} → ${trip.toCity} qatnovidagi "${seatLabel(
+        seatNumber
+      )}" o'rindiq bronini bekor qildi. Joy yana bo'sh.`,
       tripId: trip.id,
     },
   });

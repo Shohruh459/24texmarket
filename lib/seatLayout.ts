@@ -42,7 +42,9 @@ const LAYOUT_7: SeatDef[] = [
 ];
 
 export function defaultSeatLayout(totalSeats: number): SeatDef[] {
-  if (totalSeats <= 3) return LAYOUT_3;
+  // Har doim aynan `totalSeats` sonidagi o'rindiq qaytariladi — bu qatnov
+  // to'lganligini (FULL) aniqlashning to'g'riligi uchun muhim.
+  if (totalSeats <= 3) return LAYOUT_3.slice(0, totalSeats);
   if (totalSeats <= 4) return LAYOUT_4;
   return LAYOUT_7.slice(0, totalSeats);
 }

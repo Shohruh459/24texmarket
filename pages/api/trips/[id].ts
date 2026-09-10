@@ -1,10 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "../../../lib/prisma";
+import { getUserFromReq } from "../../../lib/auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  // Haydovchining telefon raqami faqat tizimga kirgan foydalanuvchilarga ko'rsatiladi —
+  // ochiq internetdagi har qanday ko'ruvchiga shaxsiy ma'lumot oshkor qilinmasligi uchun.
+  const viewer = await getUserFromReq(req);
 
   const { id } = req.query;
   const trip = await prisma.trip.findUnique({
@@ -38,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     carPlate: trip.carPlate,
     carColor: trip.driver.carColor,
     driverName: trip.driver.user.fullName,
-    driverPhone: trip.driver.user.phone,
+    driverPhone: viewer ? trip.driver.user.phone : null,
     driverId: trip.driver.id,
     driverQrCodeId: trip.driver.qrCodeId,
     bookedSeats: trip.bookings.map((b) => b.seatNumber),

@@ -16,12 +16,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { carModel, carPlate, carColor, totalSeats, defaultFrom, defaultTo, defaultPrice } =
       req.body || {};
 
-    if (!carModel || !carPlate || !totalSeats) {
+    if (!carModel || !carPlate || !totalSeats || typeof carModel !== "string" || typeof carPlate !== "string") {
       return res.status(400).json({ error: "Moshina modeli, raqami va joylar soni majburiy" });
     }
+    if (carModel.length > 60 || carPlate.length > 20 || (carColor && String(carColor).length > 30)) {
+      return res.status(400).json({ error: "Kiritilgan matn juda uzun" });
+    }
 
-    const seats = Math.max(1, Math.min(8, Number(totalSeats)));
+    const seatsNum = Number(totalSeats);
+    if (!Number.isFinite(seatsNum)) {
+      return res.status(400).json({ error: "Joylar soni noto'g'ri" });
+    }
+    const seats = Math.max(1, Math.min(8, Math.round(seatsNum)));
     const seatLayout = defaultSeatLayout(seats).map((s) => s.id);
+
+    let price: number | null = null;
+    if (defaultPrice) {
+      const parsedPrice = Number(defaultPrice);
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        return res.status(400).json({ error: "Narx noto'g'ri" });
+      }
+      price = parsedPrice;
+    }
 
     const driver = await prisma.driver.upsert({
       where: { userId: user.id },
@@ -33,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         seatLayout,
         defaultFrom: defaultFrom || null,
         defaultTo: defaultTo || null,
-        defaultPrice: defaultPrice ? Number(defaultPrice) : null,
+        defaultPrice: price,
       },
       create: {
         userId: user.id,
@@ -44,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         seatLayout,
         defaultFrom: defaultFrom || null,
         defaultTo: defaultTo || null,
-        defaultPrice: defaultPrice ? Number(defaultPrice) : null,
+        defaultPrice: price,
       },
     });
 
