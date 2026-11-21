@@ -12,14 +12,30 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!user) return;
+
     const fetchUnread = () => {
-      apiFetch<{ unreadCount: number }>("/api/notifications")
+      // Oyna fonda (boshqa tab/yashirin) bo'lsa bazaga tegmaymiz.
+      // Bu bepul limitni tejaydi va keraksiz o'qishlar 24/7
+      // to'planib ketishining oldini oladi.
+      if (typeof document !== "undefined" && document.hidden) return;
+      apiFetch<{ unreadCount: number }>("/api/notifications?countOnly=1")
         .then((d) => setUnread(d.unreadCount))
         .catch(() => {});
     };
+
     fetchUnread();
-    const interval = setInterval(fetchUnread, 20000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchUnread, 60000);
+
+    // Foydalanuvchi oynaga qaytganda darhol bir marta yangilaymiz.
+    const onVisible = () => {
+      if (!document.hidden) fetchUnread();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [user]);
 
   useEffect(() => {

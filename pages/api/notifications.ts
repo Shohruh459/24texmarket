@@ -7,6 +7,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return;
 
   if (req.method === "GET") {
+    // Navbar faqat o'qilmaganlar sonini ko'rsatadi — u har necha soniyada
+    // chaqiriladi, shuning uchun 50 ta qatorni tortmasdan, bitta yengil
+    // COUNT so'rovi bilan cheklanamiz (bepul baza limitini tejash uchun).
+    if (req.query.countOnly) {
+      const unreadCount = await prisma.notification.count({
+        where: { userId: user.id, isRead: false },
+      });
+      return res.status(200).json({ unreadCount });
+    }
+
     const notifications = await prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
