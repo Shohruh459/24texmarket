@@ -63,7 +63,7 @@ export async function notifyBookingConfirmed(passengerId: string, trip: Trip, se
       userId: passengerId,
       type: "BOOKING_CONFIRMED",
       title: "Bron tasdiqlandi",
-      body: `${trip.fromCity} → ${trip.toCity} qatnovida ${seatNumber} o'rindiq siz uchun bron qilindi.`,
+      body: `${trip.fromCity} → ${trip.toCity} qatnovida "${seatLabel(seatNumber)}" o'rindiq siz uchun bron qilindi.`,
       tripId: trip.id,
     },
   });

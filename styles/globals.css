@@ -2,19 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  font-family: Arial, sans-serif;
-  background: #f9f9f9;
-  margin: 0;
-  padding: 0;
-  /* Har qanday tasodifiy keng element mobil ekranda gorizontal scroll yaratib
-     yubormasligi uchun himoya qatlami. */
-  overflow-x: hidden;
-  max-width: 100%;
+@layer base {
+  html,
+  body {
+    @apply bg-surface-page text-ink antialiased;
+    margin: 0;
+    padding: 0;
+    /* Mobil ekranda tasodifiy keng element gorizontal scroll yaratmasligi uchun */
+    overflow-x: hidden;
+    max-width: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Fokus holatini hamma joyda izchil va ko'rinadigan qilish (klaviatura/accessibility) */
+  :focus-visible {
+    outline: 2px solid theme("colors.brand.500");
+    outline-offset: 2px;
+  }
 }
 
-img {
-  max-width: 100%;
-  height: auto;
+@layer components {
+  /* Tugmalar */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold
+      px-4 py-2.5 text-sm transition-all duration-150 select-none
+      disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink-soft border border-slate-200 hover:bg-surface-sunken;
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-ghost {
+    @apply btn text-brand-700 hover:bg-brand-50;
+  }
+  .btn-lg {
+    @apply px-6 py-3.5 text-base rounded-2xl;
+  }
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* Kartalar */
+  .card {
+    @apply bg-surface rounded-2xl shadow-card border border-slate-100;
+  }
+  .card-pad {
+    @apply card p-5;
+  }
+
+  /* Forma elementlari */
+  .label {
+    @apply block text-sm font-medium text-ink-soft mb-1.5;
+  }
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink
+      placeholder:text-ink-faint transition-colors
+      focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none;
+  }
+  .select {
+    @apply input appearance-none bg-no-repeat pr-9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+  }
+
+  /* Belgichalar (badge) */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  /* Bo'lim sarlavhasi */
+  .section-title {
+    @apply text-lg font-semibold text-ink;
+  }
+}
+
+@layer utilities {
+  /* Yuklanish skeleti uchun shimmer effekti */
+  .skeleton {
+    @apply relative overflow-hidden bg-surface-sunken rounded-lg;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: shimmer 1.5s infinite;
+  }
 }

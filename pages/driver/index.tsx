@@ -5,7 +5,14 @@ import { useUser } from "../../lib/useUser";
 import { apiFetch } from "../../lib/api";
 import { cities } from "../../data/cities";
 import { defaultSeatLayout, seatLabel } from "../../lib/seatLayout";
+import { fmtDateTime } from "../../lib/date";
 import SeatMap from "../../components/SeatMap";
+import PageHead from "../../components/ui/PageHead";
+import { PageLoader } from "../../components/ui/Spinner";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
+import TripStatusBadge from "../../components/ui/TripStatusBadge";
+import { useToast } from "../../components/ui/Toast";
 
 interface TripBooking {
   seatNumber: string;
@@ -29,6 +36,7 @@ interface Trip {
 export default function DriverDashboard() {
   const router = useRouter();
   const { user, loading, refresh } = useUser();
+  const toast = useToast();
 
   const [carModel, setCarModel] = useState("");
   const [carPlate, setCarPlate] = useState("");
@@ -39,20 +47,17 @@ export default function DriverDashboard() {
   const [defaultPrice, setDefaultPrice] = useState("");
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileError, setProfileError] = useState("");
 
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [shareUrl, setShareUrl] = useState("");
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [announcing, setAnnouncing] = useState(false);
-  const [announceError, setAnnounceError] = useState("");
   const [customDepart, setCustomDepart] = useState("");
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
+    if (!loading && !user) router.push("/login");
   }, [loading, user, router]);
 
   useEffect(() => {
@@ -67,28 +72,25 @@ export default function DriverDashboard() {
 
       const url = `${window.location.origin}/driver/${user.driver.qrCodeId}`;
       setShareUrl(url);
-      QRCode.toDataURL(url, { margin: 1, width: 220, color: { dark: "#1e3a8a", light: "#ffffff" } }).then(
-        setQrDataUrl
-      );
+      QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: "#1e3a8a", light: "#ffffff" } }).then(setQrDataUrl);
 
       loadTrips();
     } else if (user && !user.driver) {
       setEditingProfile(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadTrips = async () => {
     try {
-      const data = await apiFetch<Trip[]>("/api/driver/trips");
-      setTrips(data);
+      setTrips(await apiFetch<Trip[]>("/api/driver/trips"));
     } catch {
-      // ignore
+      /* ignore */
     }
   };
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileError("");
     setSavingProfile(true);
     try {
       await apiFetch("/api/driver/profile", {
@@ -104,16 +106,16 @@ export default function DriverDashboard() {
         }),
       });
       setEditingProfile(false);
+      toast.success("Profil saqlandi");
       await refresh();
     } catch (err: any) {
-      setProfileError(err.message);
+      toast.error(err.message);
     } finally {
       setSavingProfile(false);
     }
   };
 
   const announceTrip = async () => {
-    setAnnounceError("");
     setAnnouncing(true);
     try {
       await apiFetch("/api/driver/trips", {
@@ -121,261 +123,249 @@ export default function DriverDashboard() {
         body: JSON.stringify(customDepart ? { departAt: customDepart } : {}),
       });
       setCustomDepart("");
+      toast.success("Qatnov e'lon qilindi! Obunachilarga xabar yuborildi.");
       await loadTrips();
     } catch (err: any) {
-      setAnnounceError(err.message);
+      toast.error(err.message);
     } finally {
       setAnnouncing(false);
     }
   };
 
   const startTrip = async (tripId: string) => {
+    setStartingId(tripId);
     try {
       await apiFetch(`/api/driver/trips/${tripId}/start`, { method: "POST" });
+      toast.success("Yo'lovchilarga xabar yuborildi!");
       await loadTrips();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message);
+    } finally {
+      setStartingId(null);
     }
   };
 
-  if (loading || !user) return <div className="p-6 text-center text-gray-500">Yuklanmoqda...</div>;
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Havola nusxalandi");
+    } catch {
+      toast.info("Havolani qo'lda nusxalang");
+    }
+  };
+
+  if (loading || !user) return <PageLoader />;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-8">
-      <h1 className="text-2xl font-bold">Haydovchi paneli</h1>
+    <>
+      <PageHead title="Haydovchi paneli" />
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+        <h1 className="text-2xl font-bold text-ink">Haydovchi paneli</h1>
 
-      {/* Profil */}
-      <section className="bg-white rounded-xl shadow p-5">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold">Moshina va doimiy yo'nalish</h2>
-          {user.driver && !editingProfile && (
-            <button onClick={() => setEditingProfile(true)} className="text-blue-600 text-sm underline">
-              Tahrirlash
-            </button>
-          )}
-        </div>
-
-        {!editingProfile && user.driver ? (
-          <div className="text-gray-700 space-y-1">
-            <p>
-              <strong>{user.driver.carModel}</strong> · {user.driver.carPlate}{" "}
-              {user.driver.carColor && `· ${user.driver.carColor}`}
-            </p>
-            <p>Bo'sh o'rindiqlar: {user.driver.totalSeats}</p>
-            {user.driver.defaultFrom && user.driver.defaultTo && (
-              <p>
-                Doimiy yo'nalish: {user.driver.defaultFrom} → {user.driver.defaultTo} (
-                {user.driver.defaultPrice?.toLocaleString()} so'm/o'rindiq)
-              </p>
+        {/* Profil */}
+        <section className="card-pad">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="section-title">🚘 Moshina va yo'nalish</h2>
+            {user.driver && !editingProfile && (
+              <button onClick={() => setEditingProfile(true)} className="btn-ghost text-sm !px-3 !py-1.5">
+                Tahrirlash
+              </button>
             )}
           </div>
-        ) : (
-          <form onSubmit={saveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              placeholder="Moshina modeli (masalan: Chevrolet Cobalt)"
-              value={carModel}
-              onChange={(e) => setCarModel(e.target.value)}
-              className="p-2 border rounded"
-              required
-            />
-            <input
-              placeholder="Davlat raqami"
-              value={carPlate}
-              onChange={(e) => setCarPlate(e.target.value)}
-              className="p-2 border rounded"
-              required
-            />
-            <input
-              placeholder="Rangi (ixtiyoriy)"
-              value={carColor}
-              onChange={(e) => setCarColor(e.target.value)}
-              className="p-2 border rounded"
-            />
-            <select
-              value={totalSeats}
-              onChange={(e) => setTotalSeats(Number(e.target.value))}
-              className="p-2 border rounded"
-            >
-              {[2, 3, 4, 5, 6, 7].map((n) => (
-                <option key={n} value={n}>
-                  {n} bo'sh o'rindiq
-                </option>
-              ))}
-            </select>
-            <select value={defaultFrom} onChange={(e) => setDefaultFrom(e.target.value)} className="p-2 border rounded">
-              <option value="">Qayerdan (doimiy, ixtiyoriy)</option>
-              {cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <select value={defaultTo} onChange={(e) => setDefaultTo(e.target.value)} className="p-2 border rounded">
-              <option value="">Qayerga (doimiy, ixtiyoriy)</option>
-              {cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              placeholder="Narx (1 o'rindiq uchun, so'm)"
-              value={defaultPrice}
-              onChange={(e) => setDefaultPrice(e.target.value)}
-              className="p-2 border rounded"
-            />
 
-            <div className="md:col-span-2">
-              <p className="text-xs text-gray-500 mb-2">O'rindiqlar maketi:</p>
-              <SeatMap layout={defaultSeatLayout(totalSeats)} readOnly />
-            </div>
-
-            {profileError && <p className="text-red-500 text-sm md:col-span-2">{profileError}</p>}
-            <button
-              type="submit"
-              disabled={savingProfile}
-              className="md:col-span-2 bg-blue-600 text-white p-2 rounded disabled:opacity-50"
-            >
-              {savingProfile ? "Saqlanmoqda..." : "Saqlash"}
-            </button>
-          </form>
-        )}
-      </section>
-
-      {user.driver && (
-        <>
-          {/* Tez e'lon qilish */}
-          <section className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-semibold mb-3">Yangi qatnov e'lon qilish</h2>
-            <p className="text-sm text-gray-500 mb-3">
-              Bir tugma bosish orqali doimiy yo'nalishingiz bo'yicha darhol e'lon joylang, yoki jo'nash
-              vaqtini o'zgartiring.
-            </p>
-            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-              <input
-                type="datetime-local"
-                value={customDepart}
-                onChange={(e) => setCustomDepart(e.target.value)}
-                className="p-2 border rounded"
-              />
-              <button
-                onClick={announceTrip}
-                disabled={announcing || !user.driver.defaultFrom}
-                className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
-              >
-                {announcing ? "E'lon qilinmoqda..." : "🚗 Yo'lga chiqaman — e'lon qilish"}
-              </button>
-            </div>
-            {!user.driver.defaultFrom && (
-              <p className="text-amber-600 text-sm mt-2">
-                Tez e'lon qilish uchun avval yuqorida doimiy yo'nalishni to'ldiring.
-              </p>
-            )}
-            {announceError && <p className="text-red-500 text-sm mt-2">{announceError}</p>}
-          </section>
-
-          {/* QR */}
-          <section className="bg-white rounded-xl shadow p-5 flex flex-col md:flex-row gap-5 items-center">
-            {qrDataUrl && <img src={qrDataUrl} alt="QR kod" className="w-40 h-40 rounded-lg border" />}
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Shaxsiy QR-kodingiz</h2>
-              <p className="text-sm text-gray-600 mb-2">
-                Yo'lovchilar ushbu QR-kodni skanerlab sizga obuna bo'lishadi va yangi qatnov e'lon
-                qilganingizda avtomatik xabar olishadi.
-              </p>
-              <input
-                readOnly
-                value={shareUrl}
-                onClick={(e) => (e.target as HTMLInputElement).select()}
-                className="w-full p-2 border rounded text-sm text-gray-600"
-              />
-            </div>
-          </section>
-
-          {/* Qatnovlar */}
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Sizning qatnovlaringiz</h2>
-            {trips.length === 0 && <p className="text-gray-500">Hali qatnov e'lon qilinmagan.</p>}
-            <div className="space-y-4">
-              {trips.map((trip) => (
-                <div key={trip.id} className="bg-white rounded-xl shadow p-4">
-                  <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
-                    <div>
-                      <p className="font-semibold">
-                        {trip.fromCity} → {trip.toCity}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(trip.departAt).toLocaleString("uz-UZ")} ·{" "}
-                        {trip.pricePerSeat.toLocaleString()} so'm/o'rindiq ·{" "}
-                        {trip.bookings.length}/{trip.totalSeats} band
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={trip.status} />
-                      {(trip.status === "SCHEDULED" || trip.status === "FULL") && (
-                        <button
-                          onClick={() => startTrip(trip.id)}
-                          className="bg-blue-600 text-white text-sm px-3 py-1 rounded"
-                        >
-                          Yo'lga chiqdim
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <SeatMap
-                    layout={defaultSeatLayout(trip.totalSeats)}
-                    bookedSeatIds={trip.bookings.map((b) => b.seatNumber)}
-                    readOnly
-                  />
-                  {trip.bookings.length > 0 && (
-                    <div className="mt-3 border-t pt-3 space-y-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase">Yo'lovchilar</p>
-                      {trip.bookings.map((b) => (
-                        <div key={b.seatNumber} className="text-sm bg-gray-50 rounded-lg p-2">
-                          <p className="font-medium">
-                            {seatLabel(b.seatNumber)} — {b.passenger.fullName}{" "}
-                            <a href={`tel:${b.passenger.phone}`} className="text-blue-600">
-                              {b.passenger.phone}
-                            </a>
-                          </p>
-                          <p className="text-gray-500 break-words">
-                            {b.pickupNote && <span>{b.pickupNote} · </span>}
-                            {b.pickupLat != null && b.pickupLng != null ? (
-                              <a
-                                href={`https://www.google.com/maps?q=${b.pickupLat},${b.pickupLng}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600 underline"
-                              >
-                                Xaritada ko'rish
-                              </a>
-                            ) : (
-                              <span>manzil belgilanmagan</span>
-                            )}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+          {!editingProfile && user.driver ? (
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-xl">🚗</span>
+                <div>
+                  <p className="font-semibold text-ink">{user.driver.carModel}</p>
+                  <p className="text-sm text-ink-muted">
+                    {user.driver.carPlate}{user.driver.carColor && ` · ${user.driver.carColor}`} · {user.driver.totalSeats} o'rindiq
+                  </p>
+                </div>
+              </div>
+              {user.driver.defaultFrom && user.driver.defaultTo && (
+                <div className="bg-surface-sunken rounded-xl px-4 py-3 text-sm">
+                  <span className="text-ink-muted">Doimiy yo'nalish: </span>
+                  <span className="font-medium text-ink">{user.driver.defaultFrom} → {user.driver.defaultTo}</span>
+                  {user.driver.defaultPrice && (
+                    <span className="text-ink-muted"> · {user.driver.defaultPrice.toLocaleString()} so'm/o'rindiq</span>
                   )}
                 </div>
-              ))}
+              )}
             </div>
-          </section>
-        </>
-      )}
-    </div>
-  );
-}
+          ) : (
+            <form onSubmit={saveProfile} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Moshina modeli</label>
+                  <input placeholder="Chevrolet Cobalt" value={carModel} onChange={(e) => setCarModel(e.target.value)} className="input" required />
+                </div>
+                <div>
+                  <label className="label">Davlat raqami</label>
+                  <input placeholder="01 A 123 BC" value={carPlate} onChange={(e) => setCarPlate(e.target.value)} className="input" required />
+                </div>
+                <div>
+                  <label className="label">Rangi (ixtiyoriy)</label>
+                  <input placeholder="Oq" value={carColor} onChange={(e) => setCarColor(e.target.value)} className="input" />
+                </div>
+                <div>
+                  <label className="label">Bo'sh o'rindiqlar</label>
+                  <select value={totalSeats} onChange={(e) => setTotalSeats(Number(e.target.value))} className="select">
+                    {[2, 3, 4, 5, 6, 7].map((n) => (
+                      <option key={n} value={n}>{n} o'rindiq</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Qayerdan (doimiy)</label>
+                  <select value={defaultFrom} onChange={(e) => setDefaultFrom(e.target.value)} className="select">
+                    <option value="">Tanlanmagan</option>
+                    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Qayerga (doimiy)</label>
+                  <select value={defaultTo} onChange={(e) => setDefaultTo(e.target.value)} className="select">
+                    <option value="">Tanlanmagan</option>
+                    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="label">Narx (1 o'rindiq uchun, so'm)</label>
+                  <input type="number" inputMode="numeric" placeholder="80000" value={defaultPrice} onChange={(e) => setDefaultPrice(e.target.value)} className="input" />
+                </div>
+              </div>
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    SCHEDULED: { label: "E'lon qilingan", cls: "bg-yellow-100 text-yellow-800" },
-    FULL: { label: "To'ldi", cls: "bg-purple-100 text-purple-800" },
-    STARTED: { label: "Yo'lda", cls: "bg-blue-100 text-blue-800" },
-    FINISHED: { label: "Yakunlangan", cls: "bg-gray-100 text-gray-600" },
-    CANCELLED: { label: "Bekor qilingan", cls: "bg-red-100 text-red-700" },
-  };
-  const s = map[status] || map.SCHEDULED;
-  return <span className={`text-xs font-medium px-2 py-1 rounded-full ${s.cls}`}>{s.label}</span>;
+              <div>
+                <p className="label">O'rindiqlar maketi (ko'rinishi):</p>
+                <div className="flex justify-center">
+                  <SeatMap layout={defaultSeatLayout(totalSeats)} readOnly />
+                </div>
+              </div>
+
+              <button type="submit" disabled={savingProfile} className="btn-primary btn-block">
+                {savingProfile ? <Spinner className="w-5 h-5" /> : "Saqlash"}
+              </button>
+            </form>
+          )}
+        </section>
+
+        {user.driver && (
+          <>
+            {/* Tez e'lon */}
+            <section className="card-pad bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
+              <h2 className="section-title mb-1">⚡ Yangi qatnov e'lon qilish</h2>
+              <p className="text-sm text-ink-muted mb-4">
+                Bir tugma bilan doimiy yo'nalishingiz bo'yicha darhol e'lon joylang.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="datetime-local"
+                  value={customDepart}
+                  onChange={(e) => setCustomDepart(e.target.value)}
+                  className="input sm:flex-1"
+                />
+                <button onClick={announceTrip} disabled={announcing || !user.driver.defaultFrom} className="btn-success whitespace-nowrap">
+                  {announcing ? <Spinner className="w-5 h-5" /> : "🚗 Yo'lga chiqaman"}
+                </button>
+              </div>
+              {!user.driver.defaultFrom && (
+                <p className="text-amber-600 text-sm mt-2">
+                  ⚠️ Avval yuqorida doimiy yo'nalishni to'ldiring.
+                </p>
+              )}
+            </section>
+
+            {/* QR */}
+            <section className="card-pad">
+              <h2 className="section-title mb-4">📱 Shaxsiy QR-kodingiz</h2>
+              <div className="flex flex-col sm:flex-row gap-5 items-center">
+                {qrDataUrl && (
+                  <img src={qrDataUrl} alt="QR kod" className="w-40 h-40 rounded-xl border border-slate-200 flex-shrink-0" />
+                )}
+                <div className="flex-1 w-full">
+                  <p className="text-sm text-ink-muted mb-3">
+                    Yo'lovchilar ushbu QR-kodni skanerlab sizga obuna bo'lishadi va yangi qatnov e'lon qilganingizda avtomatik xabar olishadi.
+                  </p>
+                  <div className="flex gap-2">
+                    <input readOnly value={shareUrl} onClick={(e) => (e.target as HTMLInputElement).select()} className="input text-xs flex-1" />
+                    <button onClick={copyLink} className="btn-secondary !px-3 whitespace-nowrap">Nusxa</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Qatnovlar */}
+            <section>
+              <h2 className="section-title mb-3">Sizning qatnovlaringiz</h2>
+              {trips.length === 0 ? (
+                <div className="card">
+                  <EmptyState icon="🗓️" title="Hali qatnov yo'q" description="Yuqoridagi tugma bilan birinchi qatnovingizni e'lon qiling." />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {trips.map((trip) => (
+                    <div key={trip.id} className="card-pad">
+                      <div className="flex flex-wrap justify-between items-start gap-2 mb-3">
+                        <div>
+                          <p className="font-semibold text-ink">{trip.fromCity} → {trip.toCity}</p>
+                          <p className="text-sm text-ink-muted mt-0.5">
+                            🕐 {fmtDateTime(trip.departAt)}
+                            {" · "}{trip.pricePerSeat.toLocaleString()} so'm
+                          </p>
+                          <p className="text-sm text-ink-muted">
+                            🪑 {trip.bookings.length}/{trip.totalSeats} band
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <TripStatusBadge status={trip.status} />
+                          {(trip.status === "SCHEDULED" || trip.status === "FULL") && (
+                            <button onClick={() => startTrip(trip.id)} disabled={startingId === trip.id} className="btn-primary text-sm !px-3 !py-1.5">
+                              {startingId === trip.id ? <Spinner className="w-4 h-4" /> : "Yo'lga chiqdim"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <SeatMap layout={defaultSeatLayout(trip.totalSeats)} bookedSeatIds={trip.bookings.map((b) => b.seatNumber)} readOnly />
+                      </div>
+
+                      {trip.bookings.length > 0 && (
+                        <div className="mt-4 border-t border-slate-100 pt-3 space-y-2">
+                          <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Yo'lovchilar</p>
+                          {trip.bookings.map((b) => (
+                            <div key={b.seatNumber} className="bg-surface-sunken rounded-xl p-3 text-sm">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-medium text-ink">
+                                  <span className="badge bg-brand-100 text-brand-700 mr-1">{seatLabel(b.seatNumber)}</span>
+                                  {b.passenger.fullName}
+                                </p>
+                                <a href={`tel:${b.passenger.phone}`} className="text-brand-600 font-medium whitespace-nowrap">📞 {b.passenger.phone}</a>
+                              </div>
+                              <p className="text-ink-muted break-words mt-1.5">
+                                {b.pickupNote && <span>📍 {b.pickupNote} · </span>}
+                                {b.pickupLat != null && b.pickupLng != null ? (
+                                  <a href={`https://www.google.com/maps?q=${b.pickupLat},${b.pickupLng}`} target="_blank" rel="noreferrer" className="text-brand-600 underline">
+                                    Xaritada ko'rish
+                                  </a>
+                                ) : (
+                                  <span>manzil belgilanmagan</span>
+                                )}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
+    </>
+  );
 }

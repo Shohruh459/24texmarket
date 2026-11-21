@@ -18,11 +18,11 @@ export default function SeatMap({
   const rows = Math.max(...layout.map((s) => s.row), 0) + 1;
 
   return (
-    <div className="inline-block bg-gray-50 border rounded-xl p-4">
+    <div className="inline-block bg-surface-sunken border border-slate-200 rounded-2xl p-4">
       <div className="grid gap-2" style={{ gridTemplateRows: `repeat(${rows}, minmax(0,1fr))` }}>
         {/* Haydovchi qatori */}
         <div className="flex gap-2 justify-center">
-          <div className="w-14 h-14 rounded-lg bg-gray-800 text-white flex items-center justify-center text-xs font-semibold">
+          <div className="w-14 h-14 rounded-xl bg-ink text-white flex items-center justify-center text-xs font-semibold">
             🚗 Rul
           </div>
           {layout
@@ -60,15 +60,15 @@ export default function SeatMap({
       </div>
 
       {!readOnly && (
-        <div className="flex gap-4 justify-center mt-4 text-xs text-gray-600">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-green-500 inline-block" /> Bo'sh
+        <div className="flex gap-4 justify-center mt-4 text-xs text-ink-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Bo'sh
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-blue-600 inline-block" /> Tanlangan
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-brand-600 inline-block" /> Tanlangan
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-gray-400 inline-block" /> Band
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-slate-400 inline-block" /> Band
           </span>
         </div>
       )}
@@ -89,20 +89,20 @@ function SeatButton({
   readOnly: boolean;
   onSelect?: (seatId: string) => void;
 }) {
-  const base = "w-14 h-14 rounded-lg flex items-center justify-center text-[10px] font-medium text-center leading-tight px-1";
+  const base = "w-14 h-14 rounded-xl flex items-center justify-center text-[10px] font-medium text-center leading-tight px-1 transition-all";
 
   let colorClass = readOnly
-    ? "bg-white border-2 border-gray-300 text-gray-700"
-    : "bg-green-500 text-white hover:bg-green-600";
-  if (booked) colorClass = "bg-gray-400 text-white cursor-not-allowed";
-  if (selected) colorClass = "bg-blue-600 text-white";
+    ? "bg-white border-2 border-slate-200 text-ink-soft"
+    : "bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95";
+  if (booked) colorClass = "bg-slate-400 text-white cursor-not-allowed";
+  if (selected) colorClass = "bg-brand-600 text-white ring-2 ring-brand-200 scale-105";
 
   return (
     <button
       type="button"
       disabled={readOnly || booked}
       onClick={() => onSelect && onSelect(seat.id)}
-      className={`${base} ${colorClass} transition-colors`}
+      className={`${base} ${colorClass}`}
       title={seat.label}
     >
       {seat.label}

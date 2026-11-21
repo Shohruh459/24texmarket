@@ -26,7 +26,6 @@ export default function Navbar() {
     fetchUnread();
     const interval = setInterval(fetchUnread, 60000);
 
-    // Foydalanuvchi oynaga qaytganda darhol bir marta yangilaymiz.
     const onVisible = () => {
       if (!document.hidden) fetchUnread();
     };
@@ -44,29 +43,34 @@ export default function Navbar() {
     return () => router.events.off("routeChangeStart", close);
   }, [router.events]);
 
+  const isActive = (href: string) =>
+    href === "/" ? router.pathname === "/" : router.pathname.startsWith(href);
+
+  const navLink = (href: string, label: string) => {
+    const active = isActive(href);
+    return (
+      <Link
+        href={href}
+        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+          active ? "text-brand-700 bg-brand-50" : "text-ink-soft hover:text-brand-700 hover:bg-surface-sunken"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
+
   const links = (
     <>
-      <Link href="/search" className="text-gray-800 hover:text-blue-600 py-2 md:py-0">
-        Qatnov qidirish
-      </Link>
-      <Link href="/scan" className="text-gray-800 hover:text-blue-600 py-2 md:py-0">
-        QR skanerlash
-      </Link>
-      {user?.role === "DRIVER" && (
-        <Link href="/driver" className="text-gray-800 hover:text-blue-600 py-2 md:py-0">
-          Haydovchi paneli
-        </Link>
-      )}
+      {navLink("/search", "Qatnov qidirish")}
+      {navLink("/scan", "QR skanerlash")}
+      {user?.role === "DRIVER" && navLink("/driver", "Haydovchi paneli")}
       {user ? (
-        <Link href="/profile" className="text-gray-800 hover:text-blue-600 py-2 md:py-0">
-          Profil
-        </Link>
+        navLink("/profile", "Profil")
       ) : (
         <>
-          <Link href="/login" className="text-gray-800 hover:text-blue-600 py-2 md:py-0">
-            Kirish
-          </Link>
-          <Link href="/register" className="text-gray-800 hover:text-blue-600 py-2 md:py-0">
+          {navLink("/login", "Kirish")}
+          <Link href="/register" className="btn-primary !py-2">
             Ro'yxatdan o'tish
           </Link>
         </>
@@ -75,34 +79,34 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="bg-white shadow sticky top-0 z-20">
-      <div className="max-w-6xl mx-auto flex justify-between items-center px-4 py-3">
-        <Link href="/" className="text-lg sm:text-xl font-bold text-blue-700 shrink-0">
-          🚕 YoʻlYoʻldosh
+    <nav className="bg-white/90 backdrop-blur-sm shadow-header sticky top-0 z-20 border-b border-slate-100">
+      <div className="max-w-6xl mx-auto flex justify-between items-center px-4 py-2.5">
+        <Link href="/" className="flex items-center gap-1.5 text-lg sm:text-xl font-bold text-brand-700 shrink-0">
+          <span>🚕</span>
+          <span>YoʻlYoʻldosh</span>
         </Link>
 
-        {/* Kompyuter/planshet: to'liq gorizontal menyu */}
-        <div className="hidden md:flex gap-5 text-sm items-center">
+        <div className="hidden md:flex gap-1 items-center">
           {links}
           {user && <NotificationBell unread={unread} />}
         </div>
 
-        {/* Mobil: bildirishnoma + hamburger tugma */}
-        <div className="flex md:hidden items-center gap-3">
+        <div className="flex md:hidden items-center gap-1">
           {user && <NotificationBell unread={unread} />}
           <button
             aria-label="Menyu"
             onClick={() => setMenuOpen((v) => !v)}
-            className="text-2xl leading-none px-1 text-gray-700"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-xl text-ink-soft hover:bg-surface-sunken"
           >
             {menuOpen ? "✕" : "☰"}
           </button>
         </div>
       </div>
 
-      {/* Mobil ochiladigan menyu */}
       {menuOpen && (
-        <div className="md:hidden border-t px-4 pb-3 flex flex-col text-sm bg-white">{links}</div>
+        <div className="md:hidden border-t border-slate-100 px-3 py-2 flex flex-col gap-1 bg-white animate-slide-up">
+          {links}
+        </div>
       )}
     </nav>
   );
@@ -110,10 +114,14 @@ export default function Navbar() {
 
 function NotificationBell({ unread }: { unread: number }) {
   return (
-    <Link href="/notifications" className="relative text-gray-800 hover:text-blue-600 text-lg">
+    <Link
+      href="/notifications"
+      aria-label="Bildirishnomalar"
+      className="relative w-10 h-10 flex items-center justify-center rounded-lg text-xl hover:bg-surface-sunken"
+    >
       🔔
       {unread > 0 && (
-        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+        <span className="absolute top-1 right-1 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
           {unread > 9 ? "9+" : unread}
         </span>
       )}

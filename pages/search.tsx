@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "../lib/api";
 import { cities } from "../data/cities";
+import { fmtDateTime } from "../lib/date";
+import PageHead from "../components/ui/PageHead";
+import EmptyState from "../components/ui/EmptyState";
 
 interface TripResult {
   id: string;
@@ -22,7 +25,7 @@ export default function SearchPage() {
   const [date, setDate] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [trips, setTrips] = useState<TripResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searched, setSearched] = useState(false);
 
   const runSearch = async () => {
@@ -45,71 +48,116 @@ export default function SearchPage() {
 
   useEffect(() => {
     runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    runSearch();
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold">Qatnov qidirish</h1>
+    <>
+      <PageHead title="Qatnov qidirish" description="Viloyatlararo qatnovlarni yo'nalish, sana va narx bo'yicha qidiring." />
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+        <h1 className="text-2xl font-bold text-ink">Qatnov qidirish</h1>
 
-      <div className="bg-white rounded-xl shadow p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
-        <select value={from} onChange={(e) => setFrom(e.target.value)} className="p-2 border rounded">
-          <option value="">Qayerdan</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select value={to} onChange={(e) => setTo(e.target.value)} className="p-2 border rounded">
-          <option value="">Qayerga</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="p-2 border rounded" />
-        <input
-          type="number"
-          placeholder="Maks. narx"
-          value={maxPrice}
-          onChange={(e) => setMaxPrice(e.target.value)}
-          className="p-2 border rounded"
-        />
-        <button onClick={runSearch} className="bg-blue-600 text-white p-2 rounded">
-          Qidirish
-        </button>
-      </div>
-
-      {loading && <p className="text-gray-500">Yuklanmoqda...</p>}
-      {!loading && searched && trips.length === 0 && (
-        <p className="text-gray-500">Hech qanday qatnov topilmadi.</p>
-      )}
-
-      <div className="space-y-3">
-        {trips.map((t) => (
-          <Link
-            key={t.id}
-            href={`/trip/${t.id}`}
-            className="block bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex flex-wrap justify-between items-center gap-2">
-              <div>
-                <p className="font-semibold text-lg">
-                  {t.fromCity} → {t.toCity}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {new Date(t.departAt).toLocaleString("uz-UZ")} · {t.carModel} · {t.driverName}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-blue-700 font-bold">{t.pricePerSeat.toLocaleString()} so'm</p>
-                <p className="text-sm text-gray-500">{t.freeSeats} bo'sh joy</p>
-              </div>
+        {/* Filtr paneli */}
+        <form onSubmit={onSubmit} className="card-pad space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Qayerdan</label>
+              <select value={from} onChange={(e) => setFrom(e.target.value)} className="select">
+                <option value="">Barcha shaharlar</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
-          </Link>
-        ))}
+            <div>
+              <label className="label">Qayerga</label>
+              <select value={to} onChange={(e) => setTo(e.target.value)} className="select">
+                <option value="">Barcha shaharlar</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Sana</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" />
+            </div>
+            <div>
+              <label className="label">Maksimal narx (so'm)</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="Masalan: 100000"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                className="input"
+              />
+            </div>
+          </div>
+          <button type="submit" className="btn-primary btn-block">
+            🔍 Qidirish
+          </button>
+        </form>
+
+        {/* Natijalar */}
+        {loading ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card-pad">
+                <div className="skeleton h-5 w-1/2 mb-2" />
+                <div className="skeleton h-4 w-3/4" />
+              </div>
+            ))}
+          </div>
+        ) : trips.length === 0 ? (
+          <div className="card">
+            <EmptyState
+              icon="🔍"
+              title="Qatnov topilmadi"
+              description="Boshqa yo'nalish, sana yoki narx bilan qayta urinib ko'ring."
+            />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-ink-muted">{trips.length} ta qatnov topildi</p>
+            {trips.map((t) => (
+              <Link
+                key={t.id}
+                href={`/trip/${t.id}`}
+                className="card-pad block hover:shadow-card-hover hover:-translate-y-0.5 transition-all"
+              >
+                <div className="flex flex-wrap justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink flex items-center gap-2 flex-wrap">
+                      <span>{t.fromCity}</span>
+                      <span className="text-brand-400">→</span>
+                      <span>{t.toCity}</span>
+                    </p>
+                    <p className="text-sm text-ink-muted mt-1">
+                      🕐 {fmtDateTime(t.departAt)}
+                    </p>
+                    <p className="text-sm text-ink-muted mt-0.5">
+                      🚗 {t.carModel} · {t.driverName}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-brand-700 font-bold text-lg">{t.pricePerSeat.toLocaleString()}</p>
+                    <p className="text-xs text-ink-muted">so'm / o'rindiq</p>
+                    <span className={`badge mt-2 ${t.freeSeats > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      {t.freeSeats > 0 ? `${t.freeSeats} bo'sh joy` : "Joy yo'q"}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
