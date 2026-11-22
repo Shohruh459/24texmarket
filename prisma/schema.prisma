@@ -6,7 +6,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Ishlash vaqtidagi so'rovlar uchun — Neon'da "pooled" (PgBouncer) ulanish.
   url      = env("DATABASE_URL")
+  // Migratsiyalar uchun — Neon'da "direct" (poolsiz) ulanish.
+  // Lokal muhitda ikkalasi ham bir xil bo'lishi mumkin.
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
